@@ -4,11 +4,19 @@ Fetches live price and applies simple range-bound momentum logic.
 Not financial advice.
 """
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import httpx
 from datetime import datetime
+from pathlib import Path
 
 app = FastAPI(title="BTC Prediction Agent")
+
+# Serve static files if present
+static_dir = Path("static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 async def get_btc_price() -> float:
     """Fetch current BTC price from CoinGecko."""
@@ -46,9 +54,12 @@ def analyze(price: float) -> dict:
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    return {"message": "BTC Prediction Agent", "status": "running", "endpoints": ["/predict", "/price"]}
+    index = static_dir / "index.html"
+    if index.exists():
+        return index.read_text(encoding="utf-8")
+    return """<h1>BTC Prediction Agent</h1><p>API ready. See <a href='/predict'>/predict</a></p>"""
 
 @app.get("/price")
 async def price():
